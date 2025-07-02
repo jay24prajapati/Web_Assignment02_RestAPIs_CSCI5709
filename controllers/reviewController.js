@@ -114,7 +114,7 @@ exports.deleteReview = async (req, res) => {
       return res.status(403).json({ message: 'Access forbidden' });
     }
 
-    await review.remove();
+    await review.deleteOne();
     res.json({ message: 'Review deleted' });
   } catch (err) {
     console.error('Delete review error:', err.message);

@@ -245,7 +245,7 @@ exports.deleteMenuItem = async (req, res) => {
       return res.status(404).json({ message: 'Menu item not found' });
     }
 
-    menuItem.remove();
+    restaurant.menu.pull(menuItem._id);
     await restaurant.save();
     res.json({ message: 'Menu item deleted' });
   } catch (err) {
