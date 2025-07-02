@@ -15,13 +15,19 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['customer', 'owner'],
+    enum: ['customer', 'owner', 'admin'],
     required: true,
   },
   name: {
     type: String,
     required: true,
     trim: true,
+  },
+  isApproved: {
+    type: Boolean,
+    default: function() {
+      return this.role === 'owner' ? false : true;
+    },
   },
 }, { timestamps: true });
 

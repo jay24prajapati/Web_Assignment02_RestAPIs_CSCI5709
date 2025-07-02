@@ -22,7 +22,6 @@ exports.createBooking = [
         return res.status(404).json({ message: 'Restaurant not found' });
       }
 
-      // Check for conflicting bookings (simplified: same date and time)
       const conflictingBooking = await Booking.findOne({
         restaurant,
         date: new Date(date),
@@ -59,9 +58,8 @@ exports.getBooking = async (req, res) => {
       return res.status(404).json({ message: 'Booking not found' });
     }
 
-    // Ensure user owns the booking or is the restaurant owner
     const restaurant = await Restaurant.findById(booking.restaurant);
-    if (booking.user._id.toString() !== req.user.id && restaurant.owner.toString() !== req.user.id) {
+    if (booking.user._id.toString() !== req.user.id && restaurant.owner.toString() !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Access forbidden' });
     }
 
@@ -70,6 +68,51 @@ exports.getBooking = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+// Get all bookings for user or owner's restaurants
+exports.getUserBookings = [
+  check('status', 'Status must be pending, confirmed, rejected, or cancelled').optional().isIn(['pending', 'confirmed', 'rejected', 'cancelled']),
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { status } = req.query;
+
+    try {
+      let bookings;
+      if (req.user.role === 'customer') {
+        const query = { user: req.user.id };
+        if (status) query.status = status;
+        bookings = await Booking.find(query)
+          .populate('restaurant', 'name address')
+          .sort({ createdAt: -1 });
+      } else if (req.user.role === 'owner') {
+        const restaurants = await Restaurant.find({ owner: req.user.id });
+        const restaurantIds = restaurants.map(r => r._id);
+        const query = { restaurant: { $in: restaurantIds } };
+        if (status) query.status = status;
+        bookings = await Booking.find(query)
+          .populate('user', 'name email')
+          .populate('restaurant', 'name address')
+          .sort({ createdAt: -1 });
+      } else if (req.user.role === 'admin') {
+        const query = status ? { status } : {};
+        bookings = await Booking.find(query)
+          .populate('user', 'name email')
+          .populate('restaurant', 'name address')
+          .sort({ createdAt: -1 });
+      } else {
+        return res.status(403).json({ message: 'Access forbidden' });
+      }
+
+      res.json(bookings);
+    } catch (err) {
+      res.status(500).json({ message: 'Server error' });
+    }
+  },
+];
 
 // Update booking status (owner only)
 exports.updateBooking = [
@@ -88,7 +131,7 @@ exports.updateBooking = [
       }
 
       const restaurant = await Restaurant.findById(booking.restaurant);
-      if (restaurant.owner.toString() !== req.user.id) {
+      if (restaurant.owner.toString() !== req.user.id && req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Access forbidden' });
       }
 
@@ -109,8 +152,7 @@ exports.deleteBooking = async (req, res) => {
       return res.status(404).json({ message: 'Booking not found' });
     }
 
-    // Ensure user owns the booking
-    if (booking.user.toString() !== req.user.id) {
+    if (booking.user.toString() !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Access forbidden' });
     }
 
