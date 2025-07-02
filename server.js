@@ -25,11 +25,13 @@ const authRoutes = require('./routes/auth');
 const bookingRoutes = require('./routes/bookings');
 const reviewRoutes = require('./routes/reviews');
 const restaurantRoutes = require('./routes/restaurants');
+const slotRoutes = require('./routes/slots');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/restaurants', restaurantRoutes);
+app.use('/api/slots', slotRoutes);
 
 // Error handling middleware
 app.use(errorHandler);

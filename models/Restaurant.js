@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const moment = require('moment');
 
 const menuItemSchema = new mongoose.Schema({
   name: {
@@ -40,6 +41,30 @@ const restaurantSchema = new mongoose.Schema({
   cuisine: {
     type: String,
     trim: true,
+  },
+  openingHours: {
+    type: String,
+    required: true,
+    match: /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/,
+  },
+  closingHours: {
+    type: String,
+    required: true,
+    match: /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/,
+    validate: {
+      validator: function (value) {
+        const opening = moment(this.openingHours, 'HH:mm');
+        const closing = moment(value, 'HH:mm');
+        return closing.isAfter(opening);
+      },
+      message: 'Closing hours must be after opening hours',
+    },
+  },
+  slotDuration: {
+    type: Number,
+    required: true,
+    enum: [30, 60, 90, 120],
+    default: 60,
   },
   menu: [menuItemSchema],
 }, { timestamps: true });

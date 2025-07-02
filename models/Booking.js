@@ -11,14 +11,10 @@ const bookingSchema = new mongoose.Schema({
     ref: 'Restaurant',
     required: true,
   },
-  date: {
-    type: Date,
+  slot: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Slot',
     required: true,
-  },
-  time: {
-    type: String,
-    required: true,
-    trim: true,
   },
   partySize: {
     type: Number,

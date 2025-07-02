@@ -1,18 +1,31 @@
 const Restaurant = require('../models/Restaurant');
-const { check, validationResult, sanitize } = require('express-validator');
+const Slot = require('../models/Slot');
+const { check, validationResult } = require('express-validator');
+const moment = require('moment');
 
 // Create restaurant (owner only)
 exports.createRestaurant = [
   check('name', 'Restaurant name is required').not().isEmpty().trim().escape(),
   check('address', 'Address is required').not().isEmpty().trim().escape(),
   check('cuisine', 'Cuisine must be a string').optional().isString().trim().escape(),
+  check('openingHours', 'Opening hours must be in HH:mm format').matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
+  check('closingHours', 'Closing hours must be in HH:mm format').matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
+  check('slotDuration', 'Slot duration must be 30, 60, 90, or 120 minutes').isIn([30, 60, 90, 120]),
+  check('closingHours').custom((value, { req }) => {
+    const opening = moment(req.body.openingHours, 'HH:mm');
+    const closing = moment(value, 'HH:mm');
+    if (!closing.isAfter(opening)) {
+      throw new Error('Closing hours must be after opening hours');
+    }
+    return true;
+  }),
   async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { name, address, cuisine } = req.body;
+    const { name, address, cuisine, openingHours, closingHours, slotDuration } = req.body;
 
     try {
       if (req.user.role !== 'owner') {
@@ -24,12 +37,16 @@ exports.createRestaurant = [
         address,
         owner: req.user.id,
         cuisine,
+        openingHours,
+        closingHours,
+        slotDuration,
         menu: [],
       });
 
       await restaurant.save();
       res.status(201).json(restaurant);
     } catch (err) {
+      console.error('Create restaurant error:', err.message);
       res.status(500).json({ message: 'Server error' });
     }
   },
@@ -67,6 +84,7 @@ exports.getAllRestaurants = [
         },
       });
     } catch (err) {
+      console.error('Get all restaurants error:', err.message);
       res.status(500).json({ message: 'Server error' });
     }
   },
@@ -81,6 +99,7 @@ exports.getRestaurant = async (req, res) => {
     }
     res.json(restaurant);
   } catch (err) {
+    console.error('Get restaurant error:', err.message);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -90,6 +109,19 @@ exports.updateRestaurant = [
   check('name', 'Name is required').optional().not().isEmpty().trim().escape(),
   check('address', 'Address is required').optional().not().isEmpty().trim().escape(),
   check('cuisine', 'Cuisine must be a string').optional().isString().trim().escape(),
+  check('openingHours', 'Opening hours must be in HH:mm format').optional().matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
+  check('closingHours', 'Closing hours must be in HH:mm format').optional().matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
+  check('slotDuration', 'Slot duration must be 30, 60, 90, or 120 minutes').optional().isIn([30, 60, 90, 120]),
+  check('closingHours').optional().custom((value, { req }) => {
+    if (req.body.openingHours && value) {
+      const opening = moment(req.body.openingHours, 'HH:mm');
+      const closing = moment(value, 'HH:mm');
+      if (!closing.isAfter(opening)) {
+        throw new Error('Closing hours must be after opening hours');
+      }
+    }
+    return true;
+  }),
   async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -109,10 +141,14 @@ exports.updateRestaurant = [
       restaurant.name = req.body.name || restaurant.name;
       restaurant.address = req.body.address || restaurant.address;
       restaurant.cuisine = req.body.cuisine || restaurant.cuisine;
+      restaurant.openingHours = req.body.openingHours || restaurant.openingHours;
+      restaurant.closingHours = req.body.closingHours || restaurant.closingHours;
+      restaurant.slotDuration = req.body.slotDuration || restaurant.slotDuration;
 
       await restaurant.save();
       res.json(restaurant);
     } catch (err) {
+      console.error('Update restaurant error:', err.message);
       res.status(500).json({ message: 'Server error' });
     }
   },
@@ -145,6 +181,7 @@ exports.addMenuItem = [
       await restaurant.save();
       res.status(201).json(restaurant);
     } catch (err) {
+      console.error('Add menu item error:', err.message);
       res.status(500).json({ message: 'Server error' });
     }
   },
@@ -185,6 +222,7 @@ exports.updateMenuItem = [
       await restaurant.save();
       res.json(restaurant);
     } catch (err) {
+      console.error('Update menu item error:', err.message);
       res.status(500).json({ message: 'Server error' });
     }
   },
@@ -211,6 +249,7 @@ exports.deleteMenuItem = async (req, res) => {
     await restaurant.save();
     res.json({ message: 'Menu item deleted' });
   } catch (err) {
+    console.error('Delete menu item error:', err.message);
     res.status(500).json({ message: 'Server error' });
   }
 };

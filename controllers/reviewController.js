@@ -1,6 +1,6 @@
 const Review = require('../models/Review');
 const Restaurant = require('../models/Restaurant');
-const { check, validationResult, sanitize } = require('express-validator');
+const { check, validationResult } = require('express-validator');
 
 // Create review
 exports.createReview = [
@@ -37,6 +37,7 @@ exports.createReview = [
       await review.save();
       res.status(201).json(review);
     } catch (err) {
+      console.error('Create review error:', err.message);
       res.status(500).json({ message: 'Server error' });
     }
   },
@@ -50,6 +51,20 @@ exports.getReviewsByRestaurant = async (req, res) => {
       .sort({ createdAt: -1 });
     res.json(reviews);
   } catch (err) {
+    console.error('Get reviews by restaurant error:', err.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Get reviews by user
+exports.getUserReviews = async (req, res) => {
+  try {
+    const reviews = await Review.find({ user: req.user.id })
+      .populate('restaurant', 'name address')
+      .sort({ createdAt: -1 });
+    res.json(reviews);
+  } catch (err) {
+    console.error('Get user reviews error:', err.message);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -81,6 +96,7 @@ exports.updateReview = [
       await review.save();
       res.json(review);
     } catch (err) {
+      console.error('Update review error:', err.message);
       res.status(500).json({ message: 'Server error' });
     }
   },
@@ -101,6 +117,7 @@ exports.deleteReview = async (req, res) => {
     await review.remove();
     res.json({ message: 'Review deleted' });
   } catch (err) {
+    console.error('Delete review error:', err.message);
     res.status(500).json({ message: 'Server error' });
   }
 };
